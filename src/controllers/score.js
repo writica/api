@@ -12,10 +12,54 @@ dotenv.config();
 
 const agent = await initAgent({
     name: 'score',
-    system: `You are a helpful assistant. You will be given a content URL and you will return the score of the content based on the content URL. The score is a number between 0 and 100. The content URL is a link to a tweet or a thread.`,
-});
+    system: `Act as a professional content analyst for crypto and web3 campaigns. Analyze the following text and assign three scores (0-100) based on:  
 
-console.log(agent);
+**1. Virality Score**  
+- Criteria:  
+  - Emotional appeal (positive/negative intensity).  
+  - Use of trending keywords or hashtags (e.g., "AI," "DeFi," "NFT").  
+  - Hook quality (first sentence grabs attention).  
+  - Shareability (clear call-to-action, meme potential, controversy).  
+- Example Viral Content: "🚨 BREAKING: This new AI-powered DeFi protocol could 10x your portfolio. Here’s why you’ll regret ignoring it 👇"  
+
+**2. Quality Score**  
+- Criteria:  
+  - Readability (grammar, structure, clarity).  
+  - Originality (unique insights, not generic).  
+  - Depth (data-driven claims, examples, actionable advice).  
+  - Audience value (educational, entertaining, or inspiring).  
+- Example High-Quality Content: "A step-by-step guide to auditing smart contracts, with code snippets and Common Vulnerabilities Exposed (CVEs)."  
+
+**3. Campaign Fit**  
+- Criteria:  
+  - Alignment with campaign keywords: [campaign_keywords] (e.g., "Layer 2 scaling," "NFT utility").  
+  - Audience targeting: [target_audience] (e.g., "developers," "crypto newbies").  
+  - Tone/style: [desired_tone] (e.g., "professional," "humorous," "urgent").  
+  - Call-to-action alignment: [CTA_goal] (e.g., "drive sign-ups," "educate about security").  
+- Example Good Campaign Fit: Campaign = "Educate gamers about NFT utility." Content = "How gaming NFTs unlock exclusive in-game perks, with case studies from Axie Infinity."  
+
+---  
+
+**Text to Analyze**:  
+"[Insert user’s article/tweet here]"  
+
+---  
+
+**Output Format**:  
+{  
+  "virality_score": [0-100],  
+  "virality_reason": "[1-sentence explanation]",  
+  "quality_score": [0-100],  
+  "quality_reason": "[1-sentence explanation]",  
+  "campaign_fit_score": [0-100],  
+  "campaign_fit_reason": "[1-sentence explanation]",
+  "total_score": [(virality_score + quality_score + campaign_fit_score) / 3]
+}  
+
+**Notes**:  
+- Penalize clickbait or misleading claims in the Quality Score.  
+- Highlight mismatches between content and campaign keywords in Campaign Fit.`,
+});
 
 /**
  * Get score for a user based on their username or content URL
@@ -25,30 +69,34 @@ console.log(agent);
 export const getScore = async (req, res) => {
     console.log(req.query);
     try {
-        const { contentUrl } = req.query;
+        const { contentUrl, campaignText } = req.query;
 
-        if (!contentUrl) {
+        if (!contentUrl || !campaignText) {
             return res.status(400).json({
                 success: false,
-                message: 'ContentUrl parameter is required',
+                message: 'ContentUrl or CampaignText parameter is required',
                 data: null,
                 timestamp: new Date()
             });
         }
 
         console.log(agent.model);
-        const result =  await generateText({
+        const result = await generateText({
             model: agent.model,
-            system:  agent.system,
-            tools: {...twitterTools},
-            prompt: `Get the score of the content URL ${contentUrl}. The score is a number between 0 and 100.`,
+            system: agent.system,
+            tools: { ...twitterTools },
+            prompt: `Get the score of the content URL ${contentUrl}. The score is a number between 0 and 100.
+            The Campaign is:
+            ${campaignText}`,
+            maxSteps: agent.maxSteps,
+            temperature: agent.temperature,
         });
 
         return res.status(200).json({
             success: true,
             message: 'Score calculated successfully',
             data: {
-                result: result,
+                result: JSON.parse(result.text),
             },
             timestamp: new Date()
         });

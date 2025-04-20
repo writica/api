@@ -5,7 +5,8 @@ const baseModel = {
     name: "gpt-4o-mini",
     model: "gpt-4o-mini",
     system: "You are a helpful assistant.",
-    maxSteps: 0.7,
+    maxSteps: 10,
+    temperature: 0.7,
 };
 
 export const initAgent = async (options={}) => {

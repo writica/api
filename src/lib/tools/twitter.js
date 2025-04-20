@@ -153,6 +153,7 @@ export const twitterTools = {
                 const data = await scraper.getTweet(tweetId);
                 logger.success('Tweet fetched successfully!');
                 const twitterData = extractTwitterData(data);
+                logger.info('Extracted Twitter data:', twitterData);
                 return twitterData;
             } catch (error) {
                 logger.error("Error fetching tweet thread:", error);
