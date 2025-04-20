@@ -3,41 +3,79 @@ import { FastMCP, UserError } from "fastmcp";
 import { Scraper } from 'agent-twitter-client';
 import dotenv from 'dotenv';
 import { z } from "zod";
+import logger from "./logger.js";
 
 // Initialize and authenticate the scraper
-export async function initScraper() {
-  if (scraper) return scraper;
+let scraper;
+const server = new FastMCP({
+  name: "twitter-mcp-server",
+  version: "1.0.0",
+});
+dotenv.config();
 
-//   Check for required environment variables
-  if (!process.env.TWITTER_USERNAME || !process.env.TWITTER_PASSWORD ) {
+export async function initScraper() {
+  console.log('Starting scraper initialization...');
+  console.log('Environment variables check:', {
+    username: !!process.env.TWITTER_USERNAME,
+    password: !!process.env.TWITTER_PASSWORD,
+    email: !!process.env.TWITTER_EMAIL,
+    apiKey: !!process.env.TWITTER_API_KEY,
+    apiSecretKey: !!process.env.TWITTER_API_SECRET_KEY,
+    accessToken: !!process.env.TWITTER_ACCESS_TOKEN,
+    accessTokenSecret: !!process.env.TWITTER_ACCESS_TOKEN_SECRET
+  });
+
+  if (scraper) {
+    console.log('Returning existing scraper instance');
+    return scraper;
+  }
+
+  if (!process.env.TWITTER_USERNAME || !process.env.TWITTER_PASSWORD) {
     throw new UserError('Missing required environment variables: TWITTER_USERNAME and TWITTER_PASSWORD must be set');
   }
 
+  console.log('Creating new scraper instance...');
   scraper = new Scraper();
-  
   try {
-    
+    console.log('Attempting login...');
+    console.log('Login details:', {
+      username: process.env.TWITTER_USERNAME,
+      passwordLength: process.env.TWITTER_PASSWORD?.length,
+      hasEmail: !!process.env.TWITTER_EMAIL,
+      has2FA: !!process.env.TWITTER_2FA_SECRET
+    });
     try {
-      await scraper.login(
-        process.env.TWITTER_USERNAME , 
-        process.env.TWITTER_PASSWORD ,
+      console.log('Using scraper.login method with timeout...');
+      // Add timeout to prevent hanging during login
+      const loginPromise = scraper.login(
+        process.env.TWITTER_USERNAME,
+        process.env.TWITTER_PASSWORD,
         process.env.TWITTER_EMAIL,
         process.env.TWITTER_2FA_SECRET
       );
+
+      // Create a timeout promise
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Login timed out after 30 seconds')), 30000);
+      });
+
+      // Race the login against the timeout
+      await Promise.race([loginPromise, timeoutPromise]);
+      console.log('Basic authentication succeeded');
     } catch (basicAuthError) {
       console.error('Basic authentication failed:', basicAuthError);
-      
+
       // If basic auth fails and we have v2 credentials, try that
-      if (process.env.TWITTER_API_KEY && 
-          process.env.TWITTER_API_SECRET_KEY && 
-          process.env.TWITTER_ACCESS_TOKEN && 
-          process.env.TWITTER_ACCESS_TOKEN_SECRET) {
-        
+      if (process.env.TWITTER_API_KEY &&
+        process.env.TWITTER_API_SECRET_KEY &&
+        process.env.TWITTER_ACCESS_TOKEN &&
+        process.env.TWITTER_ACCESS_TOKEN_SECRET) {
+
         //console.log('Falling back to v2 API credentials');
-        
+
         // Login with v2 API credentials
         await scraper.login(
-          process.env.TWITTER_USERNAME?? 'gendhelaboh',
+          process.env.TWITTER_USERNAME ?? 'gendhelaboh',
           process.env.TWITTER_PASSWORD ?? 'Rahasia1!@',
           process.env.TWITTER_EMAIL || undefined,
           process.env.TWITTER_API_KEY,
@@ -50,7 +88,7 @@ export async function initScraper() {
         throw new UserError(`Authentication failed: ${basicAuthError.message}`);
       }
     }
-    
+
     console.log('Login successful');
     return scraper;
   } catch (authError) {
@@ -59,9 +97,51 @@ export async function initScraper() {
   }
 }
 
-export async function getThread(threadId){
+const extractTwitterData = (data) => {
+  // Initialize values
+  const conversationId = data.conversationId;
+  const totalView = data.views || 0;
+  const username = data.username;
+  const userId = data.userId;
 
-}
+  // Calculate total likes (adding parent tweet likes and all thread likes)
+  let totalLikes = data.likes || 0;
+  if (data.thread && data.thread.length > 0) {
+    data.thread.forEach(tweet => {
+      totalLikes += tweet.likes || 0;
+    });
+  }
+
+  // Calculate total bookmarks
+  let totalBookmarks = data.bookmarks || 0;
+  if (data.thread && data.thread.length > 0) {
+    data.thread.forEach(tweet => {
+      totalBookmarks += tweet.bookmarks || 0;
+    });
+  }
+
+  // Collect context (parent tweet text and all thread tweet texts)
+  const context = [data.text];
+  if (data.thread && data.thread.length > 0) {
+    data.thread.forEach(tweet => {
+      // Only add text content, not promotional links
+      if (tweet.text && !tweet.text.includes('🔖:')) {
+        context.push(tweet.text);
+      }
+    });
+  }
+
+  return {
+    conversation_id: conversationId,
+    total_view: totalView,
+    total_likes: totalLikes,
+    total_views: totalView, // Assuming this is the same as total_view
+    total_bookmarks: totalBookmarks,
+    username: username,
+    user_id: userId,
+    context: context
+  };
+};
 
 // Add getTweetThread tool
 server.addTool({
@@ -72,105 +152,27 @@ server.addTool({
   }),
   execute: async (args, { log }) => {
     try {
-      log.info("Initializing Twitter scraper...");
-      const twitterScraper = await initScraper();
-      
-      log.info("Fetching tweet thread...", { tweetId: args.tweetId });
-      
-      // First, get the original tweet
-      const originalTweet = await twitterScraper.getTweet(args.tweetId);
-      if (!originalTweet) {
-        throw new UserError("Tweet not found");
-      }
-      
-      // Initialize thread with the original tweet
-      let allThreadTweets = [originalTweet];
-      
-      // Get the user's screen name to fetch their timeline
-      const userId = originalTweet.userId;
-      const screenName = originalTweet.username;
-      
-      log.info(`Fetching recent tweets and replies from user: ${screenName}`);
-      
-      try {
-        // Get the user's recent tweets and replies
-        const userTweets = [];
-        
-        // Use an async iterator to paginate through results
-        for await (const tweet of twitterScraper.getTweetsAndReplies(screenName, 50)) {
-          userTweets.push(tweet);
-          
-          // Stop if we have a reasonable number of tweets to check
-          if (userTweets.length >= 100) {
-            break;
-          }
-        }
-        
-        log.info(`Found ${userTweets.length} tweets/replies from user ${screenName}`);
-        
-        // Try to determine which tweets are part of the same thread
-        const conversationId = originalTweet.conversationId || originalTweet.id;
-        
-        // Filter tweets that belong to the same conversation
-        const threadTweets = userTweets.filter(tweet => 
-          tweet.id !== originalTweet.id && // Skip the original tweet we already have
-          (tweet.conversationId === conversationId || // Match by conversation ID if available
-           tweet.inReplyToStatusId === originalTweet.id || // Direct replies to the original tweet
-           allThreadTweets.some(t => tweet.inReplyToStatusId === t.id)) // Replies to any tweet in the thread
-        );
-        
-        // Add all thread tweets to our collection
-        allThreadTweets.push(...threadTweets);
-        
-        // Sort the thread chronologically
-        allThreadTweets.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-      } catch (timelineError) {
-        log.warn(`Failed to get user timeline: ${timelineError.message}`);
-        // Continue with just the original tweet
-      }
-      
-      // Format the thread for return
-      const formattedThread = allThreadTweets.map((tweet, index) => {
-        return `Tweet ${index + 1}/${allThreadTweets.length} (ID: ${tweet.id}):\n${tweet.text}\n`;
-      }).join("\n---\n\n");
-      
-      log.info("Tweet thread fetched successfully, found " + allThreadTweets.length + " tweets");
-      return formattedThread;
+      if (!scraper) initScraper();
+
+      await scraper.login(
+        process.env.TWITTER_USERNAME,
+        process.env.TWITTER_PASSWORD,
+      );
+      const tweet = await scraper.getTweet(args.tweetId);
+      console.log('Tweet fetched successfully!');
+      const twitterData = extractTwitterData(tweet);
+      return twitterData;
     } catch (error) {
-      log.error("Failed to get tweet thread", { error: error.message });
+      logger.error("Failed to get tweet thread", { error: error.message });
       throw new UserError(`Failed to get tweet thread: ${error.message}`);
     }
   },
 });
 
-// Add sendTweet tool
-server.addTool({
-  name: "sendTweet",
-  description: "Send a new tweet",
-  parameters: z.object({
-    text: z.string().describe("The text content of the tweet to send"),
-  }),
-  execute: async (args, { log }) => {
-    try {
-      log.info("Initializing Twitter scraper...");
-      const twitterScraper = await initScraper();
-      
-      log.info("Sending tweet...");
-      const result = await twitterScraper.sendTweet(args.text);
-      log.info("result:",await result.json());
-      log.info("Tweet sent successfully");
-      const resultJson = await result.json();
-      return resultJson;
-    } catch (error) {
-      log.error("Failed to send tweet", { error: error.message });
-      throw new UserError(`Failed to send tweet: ${error.message}`);
-    }
-  },
-});
 
 // Start the server
 server.start({
   transportType: "stdio", // Use stdio for direct process communication
 });
 
-// log.info("Twitter MCP server started with stdio transport.");
+logger.info("Twitter MCP server started with stdio transport.");
