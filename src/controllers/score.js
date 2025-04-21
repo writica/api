@@ -138,7 +138,7 @@ dotenv.config();
 export const getScore = async (req, res) => {
     console.log(req.query);
     try {
-        const { contentUrl, campaignDescription, campaign_keywords, target_audience, CTA_goal  } = req.query;
+        const { contentUrl, campaignDescription, campaign_keywords, target_audience, CTA_goal } = req.query;
 
         if (!contentUrl || !campaignDescription) {
             return res.status(400).json({
@@ -163,13 +163,14 @@ export const getScore = async (req, res) => {
         const result = await generateText({
             model: scoreAgent.model,
             system: scoreAgent.system,
-            tools: { ...twitterTools, ...mediumTools },
+            tools: { ...twitterTools, ...mediumTools }, 
             prompt: `Get the score of the content URL ${contentUrl}. The score is a number between 0 and 100.
-
+            
+**Campaign Details**:
 campaign_description: ${campaignDescription}
 campaign_keywords : ${campaign_keywords}
-target_audience: ${target_audience}
-CTA_goal: ${CTA_goal}
+${target_audience ? `target_audience: ${target_audience}` : ''}
+${CTA_goal ? `CTA_goal: ${CTA_goal}` : ''}
             `,
             maxSteps: scoreAgent.maxSteps,
             temperature: 1,
