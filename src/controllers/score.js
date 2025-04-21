@@ -62,9 +62,70 @@ const agent = await initAgent({
 });
 
 /**
- * Get score for a user based on their username or content URL
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
+ * @swagger
+ * /getscore:
+ *   get:
+ *     summary: Calculate content score based on URL and campaign text
+ *     description: Retrieves a score for provided content based on virality, quality, and campaign fit.
+ *     tags: [Score]
+ *     parameters:
+ *       - in: query
+ *         name: contentUrl
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The URL of the content to analyze (e.g., a tweet URL).
+ *       - in: query
+ *         name: campaignText
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Text describing the campaign goals, keywords, and target audience.
+ *     responses:
+ *       200:
+ *         description: Score calculated successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Score calculated successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     result:
+ *                       type: object
+ *                       properties:
+ *                         virality_score:
+ *                           type: integer
+ *                           example: 85
+ *                         virality_reason:
+ *                           type: string
+ *                           example: "Strong emotional hook and trending keywords."
+ *                         quality_score:
+ *                           type: integer
+ *                           example: 70
+ *                         quality_reason:
+ *                           type: string
+ *                           example: "Well-structured but lacks deep data."
+ *                         campaign_fit_score:
+ *                           type: integer
+ *                           example: 90
+ *                         campaign_fit_reason:
+ *                           type: string
+ *                           example: "Perfectly aligns with campaign keywords and tone."
+ *                         total_score:
+ *                           type: number
+ *                           format: float
+ *                           example: 81.67
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
  */
 export const getScore = async (req, res) => {
     console.log(req.query);
