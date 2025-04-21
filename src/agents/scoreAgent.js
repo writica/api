@@ -20,7 +20,8 @@ const scoreAgent = await initAgent({
 - Example High-Quality Content: "A step-by-step guide to auditing smart contracts, with code snippets and Common Vulnerabilities Exposed (CVEs)."  
 
 **3. Campaign Fit**  
-- Criteria:  
+- Criteria:
+  - Match campaign description: [campaign_description] (e.g., "educate gamers about NFT utility").
   - Alignment with campaign keywords: [campaign_keywords] (e.g., "Layer 2 scaling," "NFT utility").  
   - Audience targeting: [target_audience] (e.g., "developers," "crypto newbies").  
   - Call-to-action alignment: [CTA_goal] (e.g., "drive sign-ups," "educate about security").  

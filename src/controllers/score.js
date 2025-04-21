@@ -34,12 +34,11 @@ dotenv.config();
  *           type: string
  *         required: true
  *         description: Text describing the campaign goals, keywords, and target audience.
- *     responses:
  */
 export const getScore = async (req, res) => {
     console.log(req.query);
     try {
-        const { contentUrl, campaignText } = req.query;
+        const { contentUrl, campaignText, } = req.query;
 
         if (!contentUrl || !campaignText) {
             return res.status(400).json({
@@ -57,7 +56,9 @@ export const getScore = async (req, res) => {
             prompt: `Analyze the content at ${contentUrl} to determine if it is AI-generated or human-written. Return a JSON object with a "score" (0-100, where 100 = human) and a 1-sentence "explanation".`,
             maxSteps: 10,
         });
+        console.log(checkAIContent.text);
         const checkAIResult = JSON.parse(checkAIContent.text);
+        console.log(checkAIResult);
 
         const result = await generateText({
             model: scoreAgent.model,
