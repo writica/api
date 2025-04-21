@@ -25,7 +25,7 @@ const scoreAgent = await initAgent({
   - Alignment with campaign keywords: [campaign_keywords] (e.g., "Layer 2 scaling," "NFT utility").  
   - Audience targeting: [target_audience] (e.g., "developers," "crypto newbies").  
   - Call-to-action alignment: [CTA_goal] (e.g., "drive sign-ups," "educate about security").  
-- Example Good Campaign Fit: Campaign = "Educate gamers about NFT utility." Content = "How gaming NFTs unlock exclusive in-game perks, with case studies from Axie Infinity."  
+- Example Good Campaign Fit: Campaign Description = "Educate gamers about NFT utility." Content = "How gaming NFTs unlock exclusive in-game perks, with case studies from Axie Infinity."  
 
 ---  
 
