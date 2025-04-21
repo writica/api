@@ -1,5 +1,9 @@
 // filepath: e:\javascript\write-to-earn-api\src\lib\swagger.js
 import swaggerJsdoc from 'swagger-jsdoc';
+import dotenv from 'dotenv';
+
+dotenv.config();
+const PORT = process.env.PORT || 3000;
 
 // Swagger definition
 const swaggerOptions = {
@@ -18,7 +22,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: 'http://localhost:3000/api',
+        url: `http://localhost:${PORT}/api`,
         description: 'Development server'
       }
     ]

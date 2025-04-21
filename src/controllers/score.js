@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import { initAgent } from '../lib/agent.js';
 import { generateId, generateText } from "ai";
 import { twitterTools } from '../lib/tools/twitter.js';
+import { mediumTools } from '../lib/tools/medium.js';
 
 dotenv.config();
 
@@ -141,11 +142,10 @@ export const getScore = async (req, res) => {
             });
         }
 
-        console.log(agent.model);
         const result = await generateText({
             model: agent.model,
             system: agent.system,
-            tools: { ...twitterTools },
+            tools: { ...twitterTools, ...mediumTools },
             prompt: `Get the score of the content URL ${contentUrl}. The score is a number between 0 and 100.
             The Campaign is:
             ${campaignText}`,
