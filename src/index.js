@@ -5,8 +5,10 @@ import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
+import swaggerUi from 'swagger-ui-express';
 import routes from './routes/index.js';
 import logger from './lib/logger.js';
+import swaggerSpec from './lib/swagger.js';
 
 // Initialize dotenv
 dotenv.config();
@@ -21,8 +23,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
+// Setup Swagger UI
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Routes (if needed for future expansion)
+// Routes
 app.use('/api', routes);
 
 // Error handling middleware
